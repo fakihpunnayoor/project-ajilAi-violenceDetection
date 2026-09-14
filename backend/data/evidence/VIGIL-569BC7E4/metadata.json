@@ -1,0 +1,17 @@
+{
+  "event_id": "VIGIL-569BC7E4",
+  "filename": "hhhh.mp4",
+  "timestamp": "2026-09-14 06:45:06 UTC",
+  "has_violence": true,
+  "max_violence_prob": 0.9749,
+  "avg_violence_prob": 0.9511,
+  "confidence": 0.9749,
+  "violence_prob": 0.9749,
+  "duration_sec": 12.33,
+  "peak_timestamp_sec": 10.87,
+  "total_frames": 370,
+  "severity": "CRITICAL",
+  "source": "Upload: hhhh.mp4",
+  "creator_name": "Faqih",
+  "creator_email": "fakkihpunnayoor@gmail.com"
+}

@@ -1,0 +1,10 @@
+{
+  "event_id": "LIVE-85A528",
+  "timestamp": "2026-09-14 07:46:26 UTC",
+  "confidence": 0.9747,
+  "violence_prob": 0.9747,
+  "severity": "CRITICAL",
+  "source": "Live CCTV Optical Sensor",
+  "creator_name": "Faqih",
+  "creator_email": "fakkihpunnayoor@gmail.com"
+}

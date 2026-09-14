@@ -1,0 +1,17 @@
+{
+  "event_id": "VIGIL-DC8792DC",
+  "filename": "test_upload.mp4",
+  "timestamp": "2026-09-14 06:22:12 UTC",
+  "has_violence": false,
+  "max_violence_prob": 0.0331,
+  "avg_violence_prob": 0.0249,
+  "confidence": 0.0331,
+  "violence_prob": 0.0331,
+  "duration_sec": 2.0,
+  "peak_timestamp_sec": 0.3,
+  "total_frames": 40,
+  "severity": "NORMAL",
+  "source": "Upload: test_upload.mp4",
+  "creator_name": "Faqih",
+  "creator_email": "fakkihpunnayoor@gmail.com"
+}

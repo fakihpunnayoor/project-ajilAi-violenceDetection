@@ -1,0 +1,10 @@
+{
+  "event_id": "LIVE-AC0006",
+  "timestamp": "2026-09-14 06:47:57 UTC",
+  "confidence": 0.9736,
+  "violence_prob": 0.9736,
+  "severity": "CRITICAL",
+  "source": "Live CCTV Optical Sensor",
+  "creator_name": "Faqih",
+  "creator_email": "fakkihpunnayoor@gmail.com"
+}

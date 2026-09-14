@@ -1,0 +1,17 @@
+{
+  "total_samples": 1000,
+  "train_samples": 750,
+  "val_samples": 150,
+  "test_samples": 100,
+  "feature_dim": 1344,
+  "spatial_dim": 1280,
+  "motion_dim": 64,
+  "sequence_length": 16,
+  "datasets_covered": [
+    "RWF-2000 Public Fight Benchmark",
+    "Real-Life Violent Situations",
+    "Hockey Physical Clashes",
+    "CCTV Surveillance Perspectives",
+    "Challenging Hard-Negatives"
+  ]
+}

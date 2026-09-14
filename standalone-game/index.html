@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CyberRunner - Aegis 2D Arcade</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #090d16;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #game-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      image-rendering: pixelated;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.15);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white flex flex-col justify-between">
+  <!-- Game Container -->
+  <div id="game-container"></div>
+
+  <!-- HTML HUD Overlay for extra crisp UI -->
+  <div id="ui-overlay" class="pointer-events-none fixed inset-0 flex flex-col justify-between p-4 z-10 hidden">
+    <div class="flex justify-between items-center w-full max-w-5xl mx-auto">
+      <!-- Health & Lives -->
+      <div class="flex items-center gap-3 bg-slate-900/80 backdrop-blur border border-cyan-500/30 px-4 py-2 rounded-xl">
+        <div class="text-xs uppercase tracking-wider text-cyan-400 font-bold">SHIELD</div>
+        <div class="flex gap-1" id="hud-hearts">
+          <div class="w-4 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#06b6d4]"></div>
+          <div class="w-4 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#06b6d4]"></div>
+          <div class="w-4 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#06b6d4]"></div>
+        </div>
+      </div>
+
+      <!-- Score & Combo -->
+      <div class="flex items-center gap-6 bg-slate-900/80 backdrop-blur border border-cyan-500/30 px-5 py-2 rounded-xl">
+        <div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400">SCORE</div>
+          <div id="hud-score" class="text-xl font-black text-cyan-300 font-mono">00000</div>
+        </div>
+        <div class="border-l border-slate-700 pl-4">
+          <div class="text-[10px] uppercase tracking-widest text-amber-400">COMBO</div>
+          <div id="hud-combo" class="text-xl font-black text-amber-300 font-mono">x1.0</div>
+        </div>
+      </div>
+
+      <!-- Controls & Pause Button -->
+      <div class="pointer-events-auto flex items-center gap-2">
+        <button id="pause-btn" class="bg-slate-800/90 hover:bg-slate-700 text-cyan-400 border border-cyan-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+          PAUSE (ESC)
+        </button>
+      </div>
+    </div>
+
+    <!-- On-screen Touch Controls for Mobile/Tablet -->
+    <div id="touch-controls" class="pointer-events-auto flex justify-between items-end w-full max-w-4xl mx-auto pb-4 md:hidden">
+      <div class="flex gap-3">
+        <button id="touch-left" class="w-14 h-14 rounded-2xl bg-slate-800/80 active:bg-cyan-600/60 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-lg text-2xl font-black">◄</button>
+        <button id="touch-right" class="w-14 h-14 rounded-2xl bg-slate-800/80 active:bg-cyan-600/60 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-lg text-2xl font-black">►</button>
+      </div>
+      <div class="flex gap-3">
+        <button id="touch-jump" class="w-16 h-16 rounded-2xl bg-cyan-600/80 active:bg-cyan-500 border border-cyan-300 flex items-center justify-center text-white shadow-[0_0_15px_#06b6d4] text-xl font-bold">JUMP</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       SYNTHESIZED WEB AUDIO ENGINE (ZERO EXTERNAL ASSETS)
+       ========================================================== */
+    class RetroAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playJump() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.15);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+      playDoubleJump() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      }
+      playCoin() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      }
+      playHit() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playGameOver() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const freqs = [350, 310, 260, 190];
+        freqs.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+          gain.gain.setValueAtTime(0.2, now + idx * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + (idx + 1) * 0.14);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.14);
+          osc.stop(now + (idx + 1) * 0.14);
+        });
+      }
+    }
+    const audio = new RetroAudioEngine();
+
+    /* ==========================================================
+       SCENE 1: BOOT SCENE (TEXTURE GENERATION)
+       ========================================================== */
+    class BootScene extends Phaser.Scene {
+      constructor() {
+        super('BootScene');
+      }
+      create() {
+        this.generateProceduralTextures();
+        this.scene.start('MenuScene');
+      }
+
+      generateProceduralTextures() {
+        // 1. Player Sprite (32x48 Cyberpunk Runner)
+        const pG = this.make.graphics({ x: 0, y: 0, add: false });
+        pG.fillStyle(0x06b6d4, 1);
+        pG.fillRoundedRect(4, 12, 24, 30, 4);
+        pG.fillStyle(0x38bdf8, 1);
+        pG.fillRect(16, 16, 12, 6);
+        pG.fillStyle(0xffffff, 1);
+        pG.fillRect(20, 17, 6, 3);
+        pG.fillStyle(0x0e7490, 1);
+        pG.fillRoundedRect(6, 4, 20, 14, 3);
+        pG.fillStyle(0xf59e0b, 1);
+        pG.fillRect(6, 42, 8, 6);
+        pG.fillRect(18, 42, 8, 6);
+        pG.generateTexture('player', 32, 48);
+        pG.destroy();
+
+        // 2. Platform Ground Texture
+        const platG = this.make.graphics({ x: 0, y: 0, add: false });
+        platG.fillStyle(0x1e293b, 1);
+        platG.fillRect(0, 0, 128, 32);
+        platG.fillStyle(0x06b6d4, 1);
+        platG.fillRect(0, 0, 128, 4);
+        platG.fillStyle(0x334155, 1);
+        platG.fillRect(4, 8, 120, 20);
+        platG.generateTexture('platform', 128, 32);
+        platG.destroy();
+
+        // 3. Moving Platform Texture
+        const mPlatG = this.make.graphics({ x: 0, y: 0, add: false });
+        mPlatG.fillStyle(0x312e81, 1);
+        mPlatG.fillRect(0, 0, 96, 24);
+        mPlatG.fillStyle(0x818cf8, 1);
+        mPlatG.fillRect(0, 0, 96, 3);
+        mPlatG.fillStyle(0xa5b4fc, 1);
+        mPlatG.fillRect(42, 8, 12, 8);
+        mPlatG.generateTexture('moving_platform', 96, 24);
+        mPlatG.destroy();
+
+        // 4. Collectible Data Gem / Coin
+        const gemG = this.make.graphics({ x: 0, y: 0, add: false });
+        gemG.fillStyle(0xfbbf24, 1);
+        gemG.fillCircle(10, 10, 8);
+        gemG.fillStyle(0xfffbeb, 1);
+        gemG.fillCircle(8, 8, 3);
+        gemG.lineStyle(2, 0xd97706, 1);
+        gemG.strokeCircle(10, 10, 8);
+        gemG.generateTexture('gem', 20, 20);
+        gemG.destroy();
+
+        // 5. Hazard / Spike
+        const spkG = this.make.graphics({ x: 0, y: 0, add: false });
+        spkG.fillStyle(0xef4444, 1);
+        spkG.beginPath();
+        spkG.moveTo(0, 24);
+        spkG.lineTo(12, 0);
+        spkG.lineTo(24, 24);
+        spkG.closePath();
+        spkG.fillPath();
+        spkG.fillStyle(0xfca5a5, 1);
+        spkG.fillCircle(12, 6, 2);
+        spkG.generateTexture('spike', 24, 24);
+        spkG.destroy();
+
+        // 6. Particle Dot
+        const partG = this.make.graphics({ x: 0, y: 0, add: false });
+        partG.fillStyle(0x38bdf8, 1);
+        partG.fillCircle(4, 4, 4);
+        partG.generateTexture('particle', 8, 8);
+        partG.destroy();
+
+        // 7. Parallax Background Layers
+        const bg1G = this.make.graphics({ x: 0, y: 0, add: false });
+        bg1G.fillStyle(0x090e1a, 1);
+        bg1G.fillRect(0, 0, 800, 600);
+        bg1G.fillStyle(0x0f172a, 1);
+        const bWidths = [60, 45, 80, 50, 90, 70, 60, 85, 75, 90, 95];
+        let bx = 0;
+        bWidths.forEach(w => {
+          const h = 180 + Math.random() * 160;
+          bg1G.fillRect(bx, 600 - h, w, h);
+          bx += w + 8;
+        });
+        bg1G.generateTexture('bg_distant', 800, 600);
+        bg1G.destroy();
+
+        const bg2G = this.make.graphics({ x: 0, y: 0, add: false });
+        bg2G.fillStyle(0x131d33, 0.75);
+        let mx = 0;
+        while (mx < 800) {
+          const mw = 40 + Math.random() * 40;
+          const mh = 100 + Math.random() * 120;
+          bg2G.fillRect(mx, 600 - mh, mw, mh);
+          bg2G.fillStyle(0x38bdf8, 0.4);
+          for (let wy = 600 - mh + 10; wy < 580; wy += 20) {
+            bg2G.fillRect(mx + 8, wy, 4, 6);
+            bg2G.fillRect(mx + mw - 14, wy, 4, 6);
+          }
+          bg2G.fillStyle(0x131d33, 0.75);
+          mx += mw + 25;
+        }
+        bg2G.generateTexture('bg_mid', 800, 600);
+        bg2G.destroy();
+      }
+    }
+
+    /* ==========================================================
+       SCENE 2: MENU SCENE
+       ========================================================== */
+    class MenuScene extends Phaser.Scene {
+      constructor() {
+        super('MenuScene');
+      }
+      create() {
+        document.getElementById('ui-overlay').classList.add('hidden');
+        const { width, height } = this.scale;
+
+        this.add.image(width / 2, height / 2, 'bg_distant').setDisplaySize(width, height);
+        this.add.image(width / 2, height / 2, 'bg_mid').setDisplaySize(width, height).setAlpha(0.6);
+
+        const gridG = this.add.graphics();
+        gridG.lineStyle(1, 0x06b6d4, 0.25);
+        for (let i = 0; i < width; i += 40) {
+          gridG.lineBetween(i, height - 120, i + (i - width / 2) * 1.5, height);
+        }
+        for (let y = height - 120; y < height; y += 20) {
+          gridG.lineBetween(0, y, width, y);
+        }
+
+        const titleText = this.add.text(width / 2, height * 0.28, 'CYBER RUNNER', {
+          fontFamily: 'Inter, system-ui',
+          fontSize: '56px',
+          fontWeight: '900',
+          fill: '#38bdf8',
+          stroke: '#083344',
+          strokeThickness: 8,
+          shadow: { offsetX: 0, offsetY: 0, color: '#06b6d4', blur: 20, fill: true }
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+          targets: titleText,
+          y: height * 0.28 - 8,
+          duration: 1800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        this.add.text(width / 2, height * 0.38, 'TACTICAL 2D PLATFORMER PROTOCOL', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          fill: '#94a3b8',
+          letterSpacing: 4
+        }).setOrigin(0.5);
+
+        const bestScore = localStorage.getItem('aegis_runner_best') || 0;
+        this.add.text(width / 2, height * 0.46, `PERSONAL BEST: ${bestScore}`, {
+          fontFamily: 'monospace',
+          fontSize: '18px',
+          fontWeight: 'bold',
+          fill: '#f59e0b'
+        }).setOrigin(0.5);
+
+        const guideBg = this.add.graphics();
+        guideBg.fillStyle(0x0f172a, 0.85);
+        guideBg.lineStyle(1, 0x38bdf8, 0.3);
+        guideBg.fillRoundedRect(width / 2 - 220, height * 0.52, 440, 80, 10);
+        guideBg.strokeRoundedRect(width / 2 - 220, height * 0.52, 440, 80, 10);
+
+        this.add.text(width / 2, height * 0.56, 'CONTROLS: [A/D] or [←/→] to Run  |  [W/SPACE] to Jump\n[SPACE] in Air for Double Jump  |  Wall Slide & Wall Jump Supported', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '12px',
+          align: 'center',
+          fill: '#cbd5e1',
+          lineSpacing: 6
+        }).setOrigin(0.5);
+
+        const startBtnBg = this.add.graphics();
+        startBtnBg.fillStyle(0x06b6d4, 1);
+        startBtnBg.fillRoundedRect(width / 2 - 120, height * 0.72, 240, 52, 12);
+
+        this.add.text(width / 2, height * 0.72 + 26, 'START INFILTRATION', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          fill: '#082f49'
+        }).setOrigin(0.5);
+
+        const hitZone = this.add.zone(width / 2, height * 0.72 + 26, 240, 52).setInteractive({ cursor: 'pointer' });
+        hitZone.on('pointerover', () => {
+          startBtnBg.clear();
+          startBtnBg.fillStyle(0x38bdf8, 1);
+          startBtnBg.fillRoundedRect(width / 2 - 124, height * 0.72 - 2, 248, 56, 12);
+        });
+        hitZone.on('pointerout', () => {
+          startBtnBg.clear();
+          startBtnBg.fillStyle(0x06b6d4, 1);
+          startBtnBg.fillRoundedRect(width / 2 - 120, height * 0.72, 240, 52, 12);
+        });
+        hitZone.on('pointerdown', () => {
+          audio.init();
+          audio.playJump();
+          this.scene.start('GameScene');
+        });
+
+        this.input.keyboard.once('keydown-SPACE', () => {
+          audio.init();
+          audio.playJump();
+          this.scene.start('GameScene');
+        });
+        this.input.keyboard.once('keydown-ENTER', () => {
+          audio.init();
+          audio.playJump();
+          this.scene.start('GameScene');
+        });
+      }
+    }
+
+    /* ==========================================================
+       SCENE 3: GAME SCENE (CORE MECHANICS)
+       ========================================================== */
+    class GameScene extends Phaser.Scene {
+      constructor() {
+        super('GameScene');
+      }
+
+      init() {
+        this.score = 0;
+        this.combo = 1.0;
+        this.comboTimer = 0;
+        this.lives = 3;
+        this.isGameOver = false;
+        this.canDoubleJump = true;
+        this.isWallSliding = false;
+        this.jumpTimer = 0;
+        this.isHoldingJump = false;
+        this.worldWidth = 4800;
+      }
+
+      create() {
+        audio.init();
+        document.getElementById('ui-overlay').classList.remove('hidden');
+        this.updateHUD();
+
+        const { width, height } = this.scale;
+        this.physics.world.setBounds(0, 0, this.worldWidth, height + 200);
+
+        this.bgDistant = this.add.tileSprite(0, 0, width, height, 'bg_distant').setOrigin(0, 0).setScrollFactor(0);
+        this.bgMid = this.add.tileSprite(0, 0, width, height, 'bg_mid').setOrigin(0, 0).setScrollFactor(0).setAlpha(0.65);
+
+        this.platforms = this.physics.add.staticGroup();
+        this.movingPlatforms = this.physics.add.group({ allowGravity: false, immovable: true });
+        this.gems = this.physics.add.group({ allowGravity: false });
+        this.hazards = this.physics.add.group({ allowGravity: false, immovable: true });
+
+        this.generateLevel(this.worldWidth, height);
+
+        this.player = this.physics.add.sprite(100, height - 150, 'player');
+        this.player.setBounce(0.05);
+        this.player.setCollideWorldBounds(false);
+        this.player.setDragX(1200);
+        this.player.setMaxVelocity(360, 750);
+        this.player.body.setSize(24, 44);
+        this.player.body.setOffset(4, 4);
+
+        this.emitter = this.add.particles(0, 0, 'particle', {
+          speed: { min: 60, max: 220 },
+          scale: { start: 1, end: 0 },
+          lifespan: 450,
+          blendMode: 'ADD',
+          emitting: false
+        });
+
+        this.physics.add.collider(this.player, this.platforms, this.onGroundLanding, null, this);
+        this.physics.add.collider(this.player, this.movingPlatforms, this.onGroundLanding, null, this);
+        this.physics.add.overlap(this.player, this.gems, this.collectGem, null, this);
+        this.physics.add.overlap(this.player, this.hazards, this.hitHazard, null, this);
+
+        this.cameras.main.setBounds(0, 0, this.worldWidth, height);
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+        this.cameras.main.setDeadzone(120, 60);
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = {
+          up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+          down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+          left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+          right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+          space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+          esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+        };
+
+        this.wasd.esc.on('down', () => this.triggerPause());
+        document.getElementById('pause-btn').onclick = () => this.triggerPause();
+
+        this.setupTouchControls();
+      }
+
+      setupTouchControls() {
+        this.touchMoveLeft = false;
+        this.touchMoveRight = false;
+        this.touchJump = false;
+
+        const leftBtn = document.getElementById('touch-left');
+        const rightBtn = document.getElementById('touch-right');
+        const jumpBtn = document.getElementById('touch-jump');
+
+        if (leftBtn && rightBtn && jumpBtn) {
+          leftBtn.onpointerdown = () => { this.touchMoveLeft = true; };
+          leftBtn.onpointerup = () => { this.touchMoveLeft = false; };
+          leftBtn.onpointerleave = () => { this.touchMoveLeft = false; };
+
+          rightBtn.onpointerdown = () => { this.touchMoveRight = true; };
+          rightBtn.onpointerup = () => { this.touchMoveRight = false; };
+          rightBtn.onpointerleave = () => { this.touchMoveRight = false; };
+
+          jumpBtn.onpointerdown = () => { this.touchJump = true; this.executeJump(); };
+          jumpBtn.onpointerup = () => { this.touchJump = false; };
+          jumpBtn.onpointerleave = () => { this.touchJump = false; };
+        }
+      }
+
+      generateLevel(worldWidth, height) {
+        let curX = 0;
+        for (let i = 0; i < 4; i++) {
+          this.platforms.create(curX + 64, height - 20, 'platform');
+          curX += 128;
+        }
+
+        while (curX < worldWidth - 300) {
+          const gap = 120 + Math.random() * 110;
+          curX += gap;
+
+          const pY = height - 60 - Math.random() * 220;
+          const platType = Math.random();
+
+          if (platType < 0.65) {
+            const p = this.platforms.create(curX + 64, pY, 'platform');
+            p.refreshBody();
+
+            if (Math.random() < 0.75) {
+              const gem = this.gems.create(curX + 64, pY - 32, 'gem');
+              this.tweens.add({
+                targets: gem,
+                y: pY - 40,
+                duration: 900,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+              });
+            }
+
+            if (Math.random() < 0.3) {
+              this.hazards.create(curX + 100, pY - 24, 'spike');
+            }
+            curX += 128;
+          } else {
+            const mp = this.movingPlatforms.create(curX + 48, pY, 'moving_platform');
+            mp.startX = curX + 48;
+            mp.moveDistance = 140;
+            mp.moveSpeed = 70 + Math.random() * 50;
+            mp.direction = 1;
+
+            const gem = this.gems.create(curX + 48, pY - 30, 'gem');
+            gem.parentPlatform = mp;
+
+            curX += 160;
+          }
+
+          if (Math.random() < 0.4) {
+            this.hazards.create(curX - 60, height - 12, 'spike');
+          }
+        }
+
+        this.platforms.create(worldWidth - 120, height - 80, 'platform');
+        const goalGem = this.gems.create(worldWidth - 120, height - 120, 'gem');
+        goalGem.setScale(1.6);
+      }
+
+      executeJump() {
+        const onFloor = this.player.body.touching.down || this.player.body.blocked.down;
+        const onWallLeft = this.player.body.blocked.left || this.player.body.touching.left;
+        const onWallRight = this.player.body.blocked.right || this.player.body.touching.right;
+
+        if (onFloor) {
+          this.player.setVelocityY(-460);
+          this.canDoubleJump = true;
+          this.isHoldingJump = true;
+          this.jumpTimer = 16;
+          audio.playJump();
+          this.emitDust(this.player.x, this.player.y + 20, 10);
+        } else if (onWallLeft || onWallRight) {
+          const pushDir = onWallLeft ? 1 : -1;
+          this.player.setVelocityX(pushDir * 320);
+          this.player.setVelocityY(-440);
+          this.canDoubleJump = true;
+          audio.playJump();
+          this.emitDust(this.player.x + (onWallLeft ? -12 : 12), this.player.y, 14);
+        } else if (this.canDoubleJump) {
+          this.player.setVelocityY(-420);
+          this.canDoubleJump = false;
+          audio.playDoubleJump();
+          this.emitDust(this.player.x, this.player.y + 15, 16);
+        }
+      }
+
+      emitDust(x, y, count = 8) {
+        this.emitter.emitParticleAt(x, y, count);
+      }
+
+      onGroundLanding() {
+        this.canDoubleJump = true;
+        this.isWallSliding = false;
+      }
+
+      collectGem(player, gem) {
+        audio.playCoin();
+        this.emitDust(gem.x, gem.y, 12);
+        gem.destroy();
+
+        this.comboTimer = 180;
+        this.combo = Math.min(4.0, Number((this.combo + 0.2).toFixed(1)));
+        this.score += Math.round(100 * this.combo);
+        this.updateHUD();
+      }
+
+      hitHazard(player, hazard) {
+        if (this.isGameOver) return;
+        audio.playHit();
+        this.cameras.main.shake(250, 0.02);
+
+        this.lives -= 1;
+        this.combo = 1.0;
+        this.updateHUD();
+
+        this.tweens.add({
+          targets: this.player,
+          alpha: 0.2,
+          duration: 100,
+          yoyo: true,
+          repeat: 4,
+          onComplete: () => {
+            this.player.setAlpha(1);
+          }
+        });
+
+        this.player.setVelocityY(-350);
+        this.player.setVelocityX(-200);
+
+        if (this.lives <= 0) {
+          this.triggerGameOver();
+        }
+      }
+
+      triggerPause() {
+        this.scene.pause();
+        this.scene.launch('PauseScene');
+      }
+
+      triggerGameOver() {
+        this.isGameOver = true;
+        audio.playGameOver();
+        this.player.setTint(0xef4444);
+        this.physics.pause();
+
+        const curBest = Number(localStorage.getItem('aegis_runner_best') || 0);
+        if (this.score > curBest) {
+          localStorage.setItem('aegis_runner_best', this.score);
+        }
+
+        this.time.delayedCall(800, () => {
+          this.scene.start('GameOverScene', { score: this.score, best: Math.max(this.score, curBest) });
+        });
+      }
+
+      updateHUD() {
+        const scoreEl = document.getElementById('hud-score');
+        const comboEl = document.getElementById('hud-combo');
+        const heartsEl = document.getElementById('hud-hearts');
+
+        if (scoreEl) scoreEl.textContent = String(this.score).padStart(5, '0');
+        if (comboEl) comboEl.textContent = `x${this.combo.toFixed(1)}`;
+
+        if (heartsEl) {
+          heartsEl.innerHTML = '';
+          for (let i = 0; i < 3; i++) {
+            const h = document.createElement('div');
+            h.className = `w-4 h-4 rounded-sm transition-all duration-300 ${
+              i < this.lives ? 'bg-cyan-400 shadow-[0_0_8px_#06b6d4]' : 'bg-slate-700 opacity-40'
+            }`;
+            heartsEl.appendChild(h);
+          }
+        }
+      }
+
+      update(time, delta) {
+        if (this.isGameOver) return;
+
+        this.bgDistant.tilePositionX = this.cameras.main.scrollX * 0.15;
+        this.bgMid.tilePositionX = this.cameras.main.scrollX * 0.35;
+
+        if (this.comboTimer > 0) {
+          this.comboTimer--;
+          if (this.comboTimer <= 0) {
+            this.combo = 1.0;
+            this.updateHUD();
+          }
+        }
+
+        this.movingPlatforms.children.iterate(mp => {
+          if (!mp) return;
+          mp.x += mp.moveSpeed * (delta / 1000) * mp.direction;
+          if (mp.x > mp.startX + mp.moveDistance) {
+            mp.direction = -1;
+          } else if (mp.x < mp.startX - mp.moveDistance) {
+            mp.direction = 1;
+          }
+          mp.refreshBody();
+
+          this.gems.children.iterate(gem => {
+            if (gem && gem.parentPlatform === mp) {
+              gem.x = mp.x;
+            }
+          });
+        });
+
+        const isLeft = this.cursors.left.isDown || this.wasd.left.isDown || this.touchMoveLeft;
+        const isRight = this.cursors.right.isDown || this.wasd.right.isDown || this.touchMoveRight;
+
+        if (isLeft) {
+          this.player.setAccelerationX(-1800);
+          this.player.setFlipX(true);
+        } else if (isRight) {
+          this.player.setAccelerationX(1800);
+          this.player.setFlipX(false);
+        } else {
+          this.player.setAccelerationX(0);
+        }
+
+        const isJumpJustDown = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                               Phaser.Input.Keyboard.JustDown(this.wasd.up) ||
+                               Phaser.Input.Keyboard.JustDown(this.wasd.space);
+
+        if (isJumpJustDown) {
+          this.executeJump();
+        }
+
+        const isJumpHeld = this.cursors.up.isDown || this.wasd.up.isDown || this.wasd.space.isDown || this.touchJump;
+        if (this.isHoldingJump && isJumpHeld && this.jumpTimer > 0) {
+          this.player.setVelocityY(this.player.body.velocity.y - 14);
+          this.jumpTimer--;
+        } else {
+          this.isHoldingJump = false;
+        }
+
+        const touchingWall = (this.player.body.blocked.left || this.player.body.touching.left ||
+                              this.player.body.blocked.right || this.player.body.touching.right) &&
+                             !this.player.body.blocked.down;
+
+        if (touchingWall && this.player.body.velocity.y > 0) {
+          this.isWallSliding = true;
+          this.player.setVelocityY(90);
+          if (Math.random() < 0.3) {
+            this.emitDust(this.player.x + (this.player.body.blocked.left ? -10 : 10), this.player.y + 10, 2);
+          }
+        } else {
+          this.isWallSliding = false;
+        }
+
+        if (this.player.y > this.scale.height + 60) {
+          this.hitHazard(this.player, null);
+          if (this.lives > 0) {
+            this.player.setPosition(Math.max(60, this.player.x - 200), this.scale.height - 250);
+            this.player.setVelocity(0, 0);
+          }
+        }
+      }
+    }
+
+    /* ==========================================================
+       SCENE 4: PAUSE SCENE (MODAL OVERLAY)
+       ========================================================== */
+    class PauseScene extends Phaser.Scene {
+      constructor() {
+        super('PauseScene');
+      }
+      create() {
+        const { width, height } = this.scale;
+
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x020617, 0.75);
+        overlay.fillRect(0, 0, width, height);
+
+        const panel = this.add.graphics();
+        panel.fillStyle(0x0f172a, 0.95);
+        panel.lineStyle(1, 0x06b6d4, 0.4);
+        panel.fillRoundedRect(width / 2 - 180, height / 2 - 130, 360, 260, 16);
+        panel.strokeRoundedRect(width / 2 - 180, height / 2 - 130, 360, 260, 16);
+
+        this.add.text(width / 2, height / 2 - 80, 'SYSTEM PAUSED', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '28px',
+          fontWeight: '900',
+          fill: '#38bdf8'
+        }).setOrigin(0.5);
+
+        const resumeBtn = this.add.text(width / 2, height / 2 - 10, 'RESUME GAME (ESC)', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          fill: '#082f49',
+          backgroundColor: '#06b6d4',
+          padding: { x: 20, y: 10 }
+        }).setOrigin(0.5).setInteractive({ cursor: 'pointer' });
+
+        resumeBtn.on('pointerdown', () => this.resumeGame());
+
+        const quitBtn = this.add.text(width / 2, height / 2 + 55, 'RETURN TO MENU', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          fill: '#94a3b8',
+          padding: { x: 16, y: 8 }
+        }).setOrigin(0.5).setInteractive({ cursor: 'pointer' });
+
+        quitBtn.on('pointerdown', () => {
+          this.scene.stop('GameScene');
+          this.scene.stop('PauseScene');
+          this.scene.start('MenuScene');
+        });
+
+        this.input.keyboard.once('keydown-ESC', () => this.resumeGame());
+      }
+
+      resumeGame() {
+        this.scene.stop('PauseScene');
+        this.scene.resume('GameScene');
+      }
+    }
+
+    /* ==========================================================
+       SCENE 5: GAME OVER SCENE
+       ========================================================== */
+    class GameOverScene extends Phaser.Scene {
+      constructor() {
+        super('GameOverScene');
+      }
+
+      init(data) {
+        this.finalScore = data.score || 0;
+        this.bestScore = data.best || 0;
+      }
+
+      create() {
+        document.getElementById('ui-overlay').classList.add('hidden');
+        const { width, height } = this.scale;
+
+        this.add.image(width / 2, height / 2, 'bg_distant').setDisplaySize(width, height).setTint(0x450a0a);
+
+        const card = this.add.graphics();
+        card.fillStyle(0x0f172a, 0.95);
+        card.lineStyle(1, 0xef4444, 0.5);
+        card.fillRoundedRect(width / 2 - 200, height / 2 - 160, 400, 320, 16);
+        card.strokeRoundedRect(width / 2 - 200, height / 2 - 160, 400, 320, 16);
+
+        this.add.text(width / 2, height / 2 - 110, 'CRITICAL FAILURE', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '30px',
+          fontWeight: '900',
+          fill: '#ef4444'
+        }).setOrigin(0.5);
+
+        this.add.text(width / 2, height / 2 - 50, `SCORE: ${this.finalScore}`, {
+          fontFamily: 'monospace',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          fill: '#38bdf8'
+        }).setOrigin(0.5);
+
+        this.add.text(width / 2, height / 2 - 10, `BEST SCORE: ${this.bestScore}`, {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          fill: '#f59e0b'
+        }).setOrigin(0.5);
+
+        const restartBtn = this.add.text(width / 2, height / 2 + 50, 'RESTART OPERATION', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '15px',
+          fontWeight: 'bold',
+          fill: '#082f49',
+          backgroundColor: '#06b6d4',
+          padding: { x: 20, y: 10 }
+        }).setOrigin(0.5).setInteractive({ cursor: 'pointer' });
+
+        restartBtn.on('pointerdown', () => {
+          this.scene.start('GameScene');
+        });
+
+        const menuBtn = this.add.text(width / 2, height / 2 + 105, 'MAIN MENU', {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          fill: '#94a3b8'
+        }).setOrigin(0.5).setInteractive({ cursor: 'pointer' });
+
+        menuBtn.on('pointerdown', () => {
+          this.scene.start('MenuScene');
+        });
+      }
+    }
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: 800,
+      height: 600,
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: { y: 980 },
+          debug: false
+        }
+      },
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      },
+      scene: [BootScene, MenuScene, GameScene, PauseScene, GameOverScene]
+    };
+
+    const game = new Phaser.Game(config);
+  </script>
+</body>
+</html>
